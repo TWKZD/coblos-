@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Room, Candidate, AuditLog, Token, RoomTheme } from '../types';
-import { Plus, Trash2, Users, FileText, CheckCircle, Clock, Key, Palette, Github } from 'lucide-react';
+import { Plus, Trash2, Users, FileText, CheckCircle, Clock, Key, Palette, Github, RefreshCw, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -40,6 +41,11 @@ export default function RoomAdmin() {
   const notifiedThresholds = useRef(new Set<number>());
   const [syncing, setSyncing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  
+  // Tokens tab state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isExportingTokensPdf, setIsExportingTokensPdf] = useState(false);
 
   useEffect(() => {
     if (!roomId || !user) return;
@@ -312,7 +318,7 @@ export default function RoomAdmin() {
     if (!room) return;
     
     const headers = ['Token', 'Status'];
-    const rows = tokens.map(t => [
+    const rows = filteredTokens.map(t => [
       t.token,
       t.isUsed ? 'Sudah Digunakan' : 'Belum Digunakan'
     ]);
@@ -332,6 +338,103 @@ export default function RoomAdmin() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const generateAlphanumericToken = (length: number) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const handleRegenerateUnusedTokens = async () => {
+    if (!roomId || !room) return;
+    const unusedTokens = tokens.filter(t => !t.isUsed);
+    if (unusedTokens.length === 0) {
+      toast.error('Tidak ada token yang belum digunakan.');
+      return;
+    }
+
+    if (!confirm(`Yakin ingin membuat ulang ${unusedTokens.length} token yang belum digunakan? Token lama akan dihapus dan diganti dengan yang baru.`)) {
+      return;
+    }
+
+    setIsRegenerating(true);
+    try {
+      const batch = writeBatch(db);
+      
+      const existingTokensSnap = await getDocs(collection(db, 'tokens'));
+      const existingTokenStrings = new Set(existingTokensSnap.docs.map(d => d.data().token));
+
+      unusedTokens.forEach(t => {
+        batch.delete(doc(db, 'tokens', t.id!));
+      });
+
+      for (let i = 0; i < unusedTokens.length; i++) {
+        let newToken = '';
+        let isUnique = false;
+        while (!isUnique) {
+          newToken = generateAlphanumericToken(8);
+          if (!existingTokenStrings.has(newToken)) {
+            isUnique = true;
+            existingTokenStrings.add(newToken);
+          }
+        }
+        const newTokenRef = doc(collection(db, 'tokens'));
+        batch.set(newTokenRef, {
+          roomId,
+          token: newToken,
+          isUsed: false
+        });
+      }
+
+      await batch.commit();
+      toast.success(`${unusedTokens.length} token berhasil dibuat ulang!`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal membuat ulang token.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const exportTokensPDF = () => {
+    if (!room) return;
+    setIsExportingTokensPdf(true);
+    try {
+      const pdf = new jsPDF();
+      
+      pdf.setFontSize(18);
+      pdf.text(`Daftar Token - ${room.title}`, 14, 22);
+      pdf.setFontSize(12);
+      pdf.text(`Kode Ruangan: ${room.code}`, 14, 30);
+      
+      const tableData = filteredTokens.map((t, index) => [
+        index + 1,
+        t.token,
+        t.isUsed ? 'Sudah Digunakan' : 'Belum Digunakan'
+      ]);
+
+      autoTable(pdf, {
+        startY: 35,
+        head: [['No', 'Token', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      pdf.save(`Token_Pemilihan_${room.code}.pdf`);
+      toast.success('Token PDF berhasil diunduh');
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal membuat PDF token');
+    } finally {
+      setIsExportingTokensPdf(false);
+    }
+  };
+
+  const filteredTokens = tokens.filter(t => t.token.toLowerCase().includes(searchTerm.toLowerCase()));
 
   if (loading || !room) return <div className="text-center py-12">Memuat...</div>;
 
@@ -550,27 +653,58 @@ export default function RoomAdmin() {
 
           {activeTab === 'tokens' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900">Daftar Token ({tokens.length})</h2>
-                <button
-                  onClick={exportTokensCSV}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg"
-                >
-                  <FileText size={16} /> Ekspor Token CSV
-                </button>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="text-xl font-bold text-gray-900">Daftar Token ({filteredTokens.length})</h2>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  <div className="relative flex-grow sm:flex-grow-0">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={16} className="text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Cari token..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={handleRegenerateUnusedTokens}
+                    disabled={isRegenerating || room.status === 'ended'}
+                    className="flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  >
+                    <RefreshCw size={16} className={isRegenerating ? 'animate-spin' : ''} /> 
+                    {isRegenerating ? 'Memproses...' : 'Regenerate Unused'}
+                  </button>
+                  <button
+                    onClick={exportTokensCSV}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg"
+                  >
+                    <FileText size={16} /> CSV
+                  </button>
+                  <button
+                    onClick={exportTokensPDF}
+                    disabled={isExportingTokensPdf}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  >
+                    <FileText size={16} /> {isExportingTokensPdf ? 'PDF...' : 'PDF'}
+                  </button>
+                </div>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="max-h-[500px] overflow-y-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 sticky top-0">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
+                        <th className="px-6 py-3 font-medium text-gray-500">No</th>
                         <th className="px-6 py-3 font-medium text-gray-500">Token</th>
                         <th className="px-6 py-3 font-medium text-gray-500">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {tokens.map(t => (
+                      {filteredTokens.map((t, index) => (
                         <tr key={t.id}>
+                          <td className="px-6 py-3 text-gray-500">{index + 1}</td>
                           <td className="px-6 py-3 font-mono font-medium tracking-widest">{t.token}</td>
                           <td className="px-6 py-3">
                             {t.isUsed ? (
@@ -585,6 +719,13 @@ export default function RoomAdmin() {
                           </td>
                         </tr>
                       ))}
+                      {filteredTokens.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                            Tidak ada token yang cocok dengan pencarian.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
