@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "A voting room",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["osis", "rt", "presiden", "pejabat", "custom"] },
+        "creatorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "ended"] },
+        "createdAt": { "type": "number" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["code", "title", "type", "creatorId", "status", "createdAt", "expiresAt"]
+    },
+    "Candidate": {
+      "title": "Candidate",
+      "description": "A candidate in a voting room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "vision": { "type": "string" },
+        "mission": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["roomId", "name", "vision", "mission", "order"]
+    },
+    "Token": {
+      "title": "Token",
+      "description": "A unique token for voting",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "token": { "type": "string" },
+        "isUsed": { "type": "boolean" },
+        "usedAt": { "type": "number" }
+      },
+      "required": ["roomId", "token", "isUsed"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "A user's profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "voter"] },
+        "profileData": {
+          "type": "object",
+          "properties": {
+            "class": { "type": "string" },
+            "role": { "type": "string" },
+            "address": { "type": "string" }
+          }
+        }
+      },
+      "required": ["uid", "displayName", "email", "role"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "An anonymous vote",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["roomId", "candidateId", "timestamp"]
+    },
+    "VoterRecord": {
+      "title": "VoterRecord",
+      "description": "Record of a user voting in a room to prevent double voting",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["roomId", "userId", "timestamp"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Log of actions in a room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["roomId", "userId", "userName", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Voting rooms"
+    },
+    "/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/Candidate" },
+      "description": "Candidates for voting rooms"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles"
+    },
+    "/votes/{voteId}": {
+      "schema": { "$ref": "#/entities/Vote" },
+      "description": "Anonymous votes"
+    },
+    "/tokens/{tokenId}": {
+      "schema": { "$ref": "#/entities/Token" },
+      "description": "Tokens for voting"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Audit logs for rooms"
+    }
+  }
+}

@@ -1,0 +1,151 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDeveloper() {
+      return isAuthenticated() && request.auth.token.email == "kaidev0101@gmail.com";
+    }
+
+    function isRoomCreator(roomId) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomId));
+      return room != null && room.data.creatorId == request.auth.uid;
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserProfile(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'role', 'profileData']) &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
+             data.role in ['admin', 'voter', 'developer'];
+    }
+
+    function isValidRoom(data) {
+      return hasOnlyAllowedFields(['code', 'title', 'type', 'creatorId', 'status', 'createdAt', 'expiresAt', 'totalVoters', 'theme']) &&
+             data.code is string && data.code.size() == 6 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.type in ['osis', 'rt', 'presiden', 'pejabat', 'custom'] &&
+             data.creatorId == request.auth.uid &&
+             data.status in ['active', 'ended'] &&
+             data.createdAt is number &&
+             data.expiresAt is number &&
+             (!('totalVoters' in data) || data.totalVoters is number) &&
+             (!('theme' in data) || data.theme in ['blue', 'green', 'purple', 'orange', 'rose']);
+    }
+
+    function isValidCandidate(data) {
+      return hasOnlyAllowedFields(['roomId', 'name', 'image', 'vision', 'mission', 'order']) &&
+             data.roomId is string && data.roomId.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (data.image == '' || (data.image is string && data.image.size() < 1000)) &&
+             data.vision is string && data.vision.size() < 2000 &&
+             data.mission is string && data.mission.size() < 2000 &&
+             data.order is number;
+    }
+
+    function isValidToken(data) {
+      return hasOnlyAllowedFields(['roomId', 'token', 'isUsed', 'usedAt']) &&
+             data.roomId is string && data.roomId.size() > 0 &&
+             data.token is string && data.token.size() > 0 && data.token.size() < 20 &&
+             data.isUsed is bool &&
+             (!('usedAt' in data) || data.usedAt is number);
+    }
+
+    function isValidVote(data) {
+      return hasOnlyAllowedFields(['roomId', 'candidateId', 'timestamp']) &&
+             data.roomId is string && data.roomId.size() > 0 &&
+             data.candidateId is string && data.candidateId.size() > 0 &&
+             data.timestamp is number;
+    }
+
+    function isValidAuditLog(data) {
+      return hasOnlyAllowedFields(['roomId', 'userId', 'userName', 'action', 'timestamp']) &&
+             data.roomId is string && data.roomId.size() > 0 &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.action is string && data.action.size() > 0 && data.action.size() < 100 &&
+             data.timestamp is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isDeveloper();
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                    request.resource.data.uid == resource.data.uid &&
+                    request.resource.data.email == resource.data.email;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true; // Voters need to read room details
+      allow create: if isAuthenticated() && isValidRoom(request.resource.data);
+      allow update: if (isAuthenticated() && isRoomCreator(roomId) && isValidRoom(request.resource.data) &&
+                    request.resource.data.creatorId == resource.data.creatorId &&
+                    request.resource.data.code == resource.data.code &&
+                    request.resource.data.createdAt == resource.data.createdAt) || isDeveloper();
+      allow delete: if isDeveloper();
+    }
+
+    match /candidates/{candidateId} {
+      allow read: if true; // Voters need to see candidates
+      allow create: if isAuthenticated() && isRoomCreator(request.resource.data.roomId) && isValidCandidate(request.resource.data);
+      allow update: if isAuthenticated() && isRoomCreator(resource.data.roomId) && isValidCandidate(request.resource.data) &&
+                    request.resource.data.roomId == resource.data.roomId;
+      allow delete: if isAuthenticated() && isRoomCreator(resource.data.roomId) || isDeveloper();
+    }
+
+    match /tokens/{tokenId} {
+      allow get: if true; // Voters need to verify their token
+      allow list: if isAuthenticated() && (isRoomCreator(resource.data.roomId) || isDeveloper());
+      allow create: if isAuthenticated() && isRoomCreator(request.resource.data.roomId) && isValidToken(request.resource.data);
+      // Allow unauthenticated voters to mark token as used
+      allow update: if true && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isUsed', 'usedAt']) &&
+                    resource.data.isUsed == false &&
+                    request.resource.data.isUsed == true;
+      allow delete: if isAuthenticated() && isRoomCreator(resource.data.roomId) || isDeveloper();
+    }
+
+    match /votes/{voteId} {
+      // Room creator, developer, or anyone if the room is ended can see votes
+      allow read: if (isAuthenticated() && (isRoomCreator(resource.data.roomId) || isDeveloper())) ||
+                  (get(/databases/$(database)/documents/rooms/$(resource.data.roomId)).data.status == 'ended');
+      // Anyone with a token can create a vote (validated by frontend transaction)
+      allow create: if true && isValidVote(request.resource.data);
+      allow delete: if isDeveloper();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated() && (isRoomCreator(resource.data.roomId) || isDeveloper());
+      allow create: if true && isValidAuditLog(request.resource.data);
+      allow delete: if isDeveloper();
+    }
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isDeveloper();
+    }
+  }
+}
