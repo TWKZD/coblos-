@@ -150,10 +150,10 @@ export default function VotingRoom() {
 
   if (room.status === 'ended') {
     return (
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 px-4 sm:px-0">
         <div className={`text-center py-8 bg-white rounded-2xl shadow-sm border border-gray-200`}>
           <CheckCircle className={`w-16 h-16 ${colors.text} mx-auto mb-4`} />
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Pemilihan Telah Berakhir</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Pemilihan Telah Berakhir</h2>
           <p className="text-gray-500">Berikut adalah hasil akhir dari pemilihan <strong>{room.title}</strong>.</p>
         </div>
 
@@ -186,22 +186,22 @@ export default function VotingRoom() {
 
   if (hasVoted) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-200">
+      <div className="max-w-2xl mx-auto text-center py-12 sm:py-16 bg-white rounded-2xl shadow-sm border border-gray-200 px-4 sm:px-8">
         <CheckCircle className={`w-16 h-16 ${colors.text} mx-auto mb-4`} />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Terima Kasih!</h2>
         <p className="text-gray-500 mb-6">Suara Anda telah berhasil direkam secara anonim.</p>
-        <div className={`inline-flex items-center gap-2 px-4 py-3 ${colors.lightBg} ${colors.text} rounded-xl text-sm`}>
-          <Lock size={18} />
-          Hasil pemilihan dirahasiakan hingga proses voting ditutup oleh panitia.
+        <div className={`inline-flex items-center gap-2 px-4 py-3 ${colors.lightBg} ${colors.text} rounded-xl text-sm text-left`}>
+          <Lock size={18} className="flex-shrink-0" />
+          <span>Hasil pemilihan dirahasiakan hingga proses voting ditutup oleh panitia.</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 px-4 sm:px-0">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{room.title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{room.title}</h1>
         <p className="text-gray-500">Silakan pilih salah satu kandidat di bawah ini.</p>
       </div>
 
@@ -252,8 +252,8 @@ export default function VotingRoom() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="text-gray-600">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-gray-600 text-center sm:text-left">
             {selectedCandidate ? (
               <span>Anda memilih: <strong className="text-gray-900">{candidates.find(c => c.id === selectedCandidate)?.name}</strong></span>
             ) : (
@@ -263,7 +263,7 @@ export default function VotingRoom() {
           <button
             onClick={() => setShowTokenModal(true)}
             disabled={!selectedCandidate}
-            className={`${colors.bg} text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center gap-2`}
+            className={`w-full sm:w-auto ${colors.bg} text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2`}
           >
             Kirim Suara
             <CheckCircle size={20} />
@@ -272,21 +272,21 @@ export default function VotingRoom() {
       </div>
       
       {/* Spacer for fixed bottom bar */}
-      <div className="h-24"></div>
+      <div className="h-32 sm:h-24"></div>
 
       {/* Token Modal */}
       {showTokenModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => setShowTokenModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full p-1 transition-colors"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
             
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Masukkan Token</h3>
-            <p className="text-gray-500 mb-6">Silakan masukkan token pemilih Anda untuk mengonfirmasi suara.</p>
+            <p className="text-gray-500 mb-6 text-sm sm:text-base">Silakan masukkan token pemilih Anda untuk mengonfirmasi suara.</p>
             
             <div className="space-y-4">
               <div>
@@ -305,7 +305,7 @@ export default function VotingRoom() {
               <button
                 onClick={handleVote}
                 disabled={submitting || !tokenInput.trim()}
-                className={`w-full ${colors.bg} text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2`}
+                className={`w-full ${colors.bg} text-white px-6 py-3.5 rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2`}
               >
                 {submitting ? 'Memverifikasi...' : 'Konfirmasi Suara'}
               </button>

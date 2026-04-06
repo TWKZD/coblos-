@@ -44,15 +44,15 @@ export default function Dashboard() {
   if (loading) return <div className="text-center py-12">Memuat...</div>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="max-w-5xl mx-auto space-y-8 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Saya</h1>
-          <p className="text-gray-500 mt-1">Kelola ruang pemilihan yang telah Anda buat.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard Saya</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">Kelola ruang pemilihan yang telah Anda buat.</p>
         </div>
         <Link
           to="/create"
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors w-full sm:w-auto"
         >
           <PlusCircle size={20} />
           Buat Ruangan
@@ -60,12 +60,12 @@ export default function Dashboard() {
       </div>
 
       {rooms.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-8 sm:p-12 text-center">
           <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <PlusCircle size={32} />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Belum Ada Ruangan</h2>
-          <p className="text-gray-500 mb-6 max-w-md mx-auto">Anda belum membuat ruang pemilihan apapun. Mulai buat ruangan pertama Anda sekarang.</p>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto text-sm sm:text-base">Anda belum membuat ruang pemilihan apapun. Mulai buat ruangan pertama Anda sekarang.</p>
           <Link
             to="/create"
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
@@ -74,7 +74,7 @@ export default function Dashboard() {
           </Link>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {rooms.map(room => (
             <div key={room.id} className="bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-md transition-shadow flex flex-col">
               <div className="flex justify-between items-start mb-4">

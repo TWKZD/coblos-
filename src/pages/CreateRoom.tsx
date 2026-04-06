@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, addDoc, writeBatch, doc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { RoomType, RoomTheme } from '../types';
+import toast from 'react-hot-toast';
 
 export default function CreateRoom() {
   const { user } = useAuth();
@@ -83,10 +84,11 @@ export default function CreateRoom() {
       
       await batch.commit();
 
+      toast.success('Ruangan berhasil dibuat!');
       navigate(`/admin/${roomRef.id}`);
     } catch (error) {
       console.error("Error creating room:", error);
-      alert("Gagal membuat ruangan.");
+      toast.error("Gagal membuat ruangan.");
     } finally {
       setLoading(false);
     }
@@ -101,10 +103,10 @@ export default function CreateRoom() {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Buat Ruang Pemilihan</h1>
-        <p className="text-gray-500 mb-8">Atur detail dasar untuk pemilihan Anda. Anda dapat menambahkan kandidat setelah ini.</p>
+    <div className="max-w-2xl mx-auto px-4 sm:px-0">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Buat Ruang Pemilihan</h1>
+        <p className="text-gray-500 mb-8 text-sm sm:text-base">Atur detail dasar untuk pemilihan Anda. Anda dapat menambahkan kandidat setelah ini.</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -152,7 +154,7 @@ export default function CreateRoom() {
                 <label
                   key={t.id}
                   className={`
-                    cursor-pointer border rounded-xl p-4 text-center transition-all
+                    cursor-pointer border rounded-xl p-3 sm:p-4 text-center transition-all
                     ${type === t.id ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-300'}
                   `}
                 >
@@ -164,7 +166,7 @@ export default function CreateRoom() {
                     onChange={(e) => setType(e.target.value as RoomType)}
                     className="sr-only"
                   />
-                  <span className="font-medium text-sm">{t.label}</span>
+                  <span className="font-medium text-xs sm:text-sm">{t.label}</span>
                 </label>
               ))}
             </div>
@@ -174,7 +176,7 @@ export default function CreateRoom() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tema Warna Ruangan
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {themes.map((t) => (
                 <label
                   key={t.id}
@@ -202,7 +204,7 @@ export default function CreateRoom() {
             <button
               type="submit"
               disabled={loading || !title || totalVoters < 1}
-              className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Membuat...' : 'Buat Ruangan'}
             </button>
